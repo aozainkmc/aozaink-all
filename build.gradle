@@ -1,0 +1,70 @@
+plugins {
+    id "base"
+}
+
+version = rootProject.mod_version
+group = rootProject.maven_group
+
+evaluationDependsOn(":aozaink-core")
+evaluationDependsOn(":aozaink-input")
+evaluationDependsOn(":aozaink-sigillum")
+
+base {
+    archivesName = "aozaink"
+}
+
+def bundledJars = [
+    project(":aozaink-core").tasks.named("jarJar", Jar),
+    project(":aozaink-input").tasks.named("jar", Jar),
+    project(":aozaink-sigillum").tasks.named("jar", Jar)
+]
+
+tasks.register("jar", Jar) {
+    group = "build"
+    description = "Builds the single-file player distribution jar."
+    archiveBaseName = "aozaink"
+    archiveVersion = project.version
+    destinationDirectory = layout.buildDirectory.dir("libs")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    dependsOn bundledJars
+
+    for (def jarTaskProvider : bundledJars) {
+        from(jarTaskProvider.flatMap { it.archiveFile }.map { zipTree(it) }) {
+            exclude "META-INF/MANIFEST.MF"
+            exclude "META-INF/neoforge.mods.toml"
+        }
+    }
+
+    from("src/main/resources") {
+        include "META-INF/neoforge.mods.toml"
+        expand([
+            minecraft_version: rootProject.minecraft_version,
+            compatible_minecraft_versions: rootProject.compatible_minecraft_versions,
+            loader_version_range: rootProject.loader_version_range,
+            neo_version: rootProject.neo_version,
+            mod_license: rootProject.mod_license,
+            mod_version: rootProject.mod_version,
+            mod_authors: rootProject.mod_authors
+        ])
+    }
+
+    manifest {
+        attributes([
+            "Specification-Title": "aozaink",
+            "Specification-Vendor": rootProject.mod_authors,
+            "Specification-Version": "1",
+            "Implementation-Title": "aozaink",
+            "Implementation-Version": project.version,
+            "Implementation-Vendor": rootProject.mod_authors
+        ])
+    }
+}
+
+artifacts {
+    archives tasks.named("jar")
+}
+
+tasks.named("assemble") {
+    dependsOn tasks.named("jar")
+}

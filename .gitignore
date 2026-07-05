@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Minecraft run directories
+runs/
+**/runs/
+run/
+**/run/
+
+# IDE/editor
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.vscode/
+
+# Java/build output
+bin/
+out/
+target/
+*.class
+
+# Logs and crash reports
+logs/
+**/logs/
+crash-reports/
+**/crash-reports/
+*.log
+hs_err_pid*
+replay_pid*
+
+# Local files
+*.tmp
+*.bak
+*.swp
+*.swo
+Thumbs.db
+desktop.ini
