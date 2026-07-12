@@ -1,6 +1,6 @@
-# AozaiInk All
+# Molu / 墨箓
 
-AozaiInk 玩法的整合仓库，用于聚合构建和发布 release。
+`aozaink-all` 是开发工程名；面向玩家及 Modrinth 的聚合完整版发布名为 `molu`。
 
 本仓库引用以下模块：
 
@@ -14,4 +14,4 @@ AozaiInk 玩法的整合仓库，用于聚合构建和发布 release。
 .\gradlew.bat :aozaink-all:build
 ```
 
-Release 使用 `aozaink-all/build/libs/` 下生成的聚合 jar。
+Release 使用 `aozaink-all/build/libs/` 下生成的 `molu-<version>.jar`。独立模块分别发布为 `molu-core`、`molu-input`、`molu-sigillum`，源码工程名保持 `aozaink-*`。
