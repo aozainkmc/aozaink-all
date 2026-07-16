@@ -13,30 +13,41 @@ base {
     archivesName = "molu"
 }
 
-def bundledJars = [
-    project(":aozaink-core").tasks.named("jarJar", Jar),
-    project(":aozaink-input").tasks.named("jar", Jar),
-    project(":aozaink-sigillum").tasks.named("jar", Jar)
-]
+def coreFullJar = project(":aozaink-core").tasks.named("jarJar", Jar)
+def coreThinJar = project(":aozaink-core").tasks.named("jar", Jar)
+def coreReducedJar = project(":aozaink-core").tasks.named("reducedJar", Jar)
+def inputJar = project(":aozaink-input").tasks.named("jar", Jar)
+def sigillumJar = project(":aozaink-sigillum").tasks.named("jar", Jar)
+def reducedClassifier = coreReducedJar.get().archiveClassifier.get()
+def reducedRuntimeArtifact = reducedClassifier == "reduced"
+    ? "onnxruntime-${rootProject.onnxruntime_version}-reduced.jar"
+    : "onnxruntime-${rootProject.onnxruntime_version}-reduced-win-x64.jar"
+def deleteStaleReducedVariant = tasks.register("deleteStaleReducedVariant", Delete) {
+    def staleClassifier = reducedClassifier == "reduced" ? "reduced-win-x64" : "reduced"
+    delete layout.buildDirectory.file("libs/molu-${project.version}-${staleClassifier}.jar")
+}
 
-tasks.register("jar", Jar) {
-    group = "build"
-    description = "Builds the single-file player distribution jar."
-    archiveBaseName = "molu"
-    archiveVersion = project.version
-    destinationDirectory = layout.buildDirectory.dir("libs")
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+def configureBundle = { Jar task, def coreJar, String classifier, String description ->
+    def bundledJars = [coreJar, inputJar, sigillumJar]
 
-    dependsOn bundledJars
+    task.group = "build"
+    task.description = description
+    task.archiveBaseName = "molu"
+    task.archiveVersion = project.version
+    task.archiveClassifier = classifier
+    task.destinationDirectory = layout.buildDirectory.dir("libs")
+    task.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    task.dependsOn bundledJars
 
     for (def jarTaskProvider : bundledJars) {
-        from(jarTaskProvider.flatMap { it.archiveFile }.map { zipTree(it) }) {
+        task.from(jarTaskProvider.flatMap { it.archiveFile }.map { zipTree(it) }) {
             exclude "META-INF/MANIFEST.MF"
             exclude "META-INF/neoforge.mods.toml"
         }
     }
 
-    from("src/main/resources") {
+    task.from("src/main/resources") {
         include "META-INF/neoforge.mods.toml"
         expand([
             minecraft_version: rootProject.minecraft_version,
@@ -49,7 +60,7 @@ tasks.register("jar", Jar) {
         ])
     }
 
-    manifest {
+    task.manifest {
         attributes([
             "Specification-Title": "molu",
             "Specification-Vendor": rootProject.mod_authors,
@@ -61,10 +72,105 @@ tasks.register("jar", Jar) {
     }
 }
 
+def fullBundleJar = tasks.register("jar", Jar) {
+    configureBundle(delegate, coreFullJar, "", "Builds Molu with the complete official ONNX Runtime.")
+}
+
+def thinBundleJar = tasks.register("thinJar", Jar) {
+    configureBundle(delegate, coreThinJar, "thin", "Builds Molu without an embedded ONNX Runtime.")
+}
+
+def reducedBundleJar = tasks.register("reducedJar", Jar) {
+    dependsOn deleteStaleReducedVariant
+    configureBundle(
+        delegate,
+        coreReducedJar,
+        reducedClassifier,
+        "Builds Molu with the model-specific reduced ONNX Runtime (${reducedClassifier})."
+    )
+}
+
 artifacts {
-    archives tasks.named("jar")
+    archives fullBundleJar
+    archives thinBundleJar
+    archives reducedBundleJar
 }
 
 tasks.named("assemble") {
-    dependsOn tasks.named("jar")
+    dependsOn fullBundleJar
+    dependsOn thinBundleJar
+    dependsOn reducedBundleJar
+}
+
+tasks.register("verifyBundleMetadata") {
+    group = "verification"
+    description = "Verifies client mixin declarations and bundled module dependencies."
+    dependsOn fullBundleJar
+    dependsOn thinBundleJar
+    dependsOn reducedBundleJar
+
+    doLast {
+        def variants = [
+            full: [archive: fullBundleJar.get().archiveFile.get().asFile, runtime: "META-INF/jarjar/onnxruntime-${rootProject.onnxruntime_version}.jar"],
+            thin: [archive: thinBundleJar.get().archiveFile.get().asFile, runtime: null],
+            reduced: [archive: reducedBundleJar.get().archiveFile.get().asFile, runtime: "META-INF/jarjar/${reducedRuntimeArtifact}"]
+        ]
+
+        variants.each { variantName, variant ->
+            new java.util.zip.ZipFile(variant.archive).withCloseable { zip ->
+            def metadataEntry = zip.getEntry("META-INF/neoforge.mods.toml")
+            if (metadataEntry == null) throw new GradleException("${variantName}: bundled neoforge.mods.toml is missing")
+            def metadata = zip.getInputStream(metadataEntry).getText("UTF-8")
+            for (def mixinConfig : ["aozaink_input.mixins.json", "aozaink_sigillum.mixins.json"]) {
+                if (zip.getEntry(mixinConfig) == null) {
+                    throw new GradleException("${variantName}: bundled mixin config is missing: ${mixinConfig}")
+                }
+                if (!metadata.contains("config=\"${mixinConfig}\"")) {
+                    throw new GradleException("${variantName}: bundled metadata does not declare mixin config: ${mixinConfig}")
+                }
+            }
+            for (def modelResource : [
+                "assets/aozaink_core/ocr/mix_flash_v1/unified_dynamic.onnx",
+                "assets/aozaink_core/ocr/mix_flash_v1/meta.json",
+                "assets/aozaink_core/ocr/mix_flash_v1/vocab.json"
+            ]) {
+                if (zip.getEntry(modelResource) == null) {
+                    throw new GradleException("${variantName}: bundled unified OCR resource is missing: ${modelResource}")
+                }
+            }
+            for (def retiredModel : [
+                "assets/aozaink_core/ocr/cup_ocr_64.onnx",
+                "assets/aozaink_core/ocr/olsingle24/candidate_dynamic.onnx"
+            ]) {
+                if (zip.getEntry(retiredModel) != null) {
+                    throw new GradleException("${variantName}: bundled jar still contains retired OCR resource: ${retiredModel}")
+                }
+            }
+            def sigillumInputDependency = /(?s)\[\[dependencies\.aozaink_sigillum\]\].*?modId="aozaink_input"/
+            if (!(metadata =~ sigillumInputDependency).find()) {
+                throw new GradleException("${variantName}: bundled metadata does not declare Sigillum's Input dependency")
+            }
+
+            def embeddedRuntimes = zip.entries().findAll {
+                it.name.startsWith("META-INF/jarjar/onnxruntime-") && it.name.endsWith(".jar")
+            }*.name
+            if (variant.runtime == null) {
+                if (!embeddedRuntimes.isEmpty()) {
+                    throw new GradleException("thin: unexpectedly embeds ONNX Runtime: ${embeddedRuntimes}")
+                }
+            } else if (embeddedRuntimes != [variant.runtime]) {
+                throw new GradleException(
+                    "${variantName}: expected runtime ${variant.runtime}, found ${embeddedRuntimes}"
+                )
+            }
+            if (variant.runtime != null && zip.getEntry("META-INF/jarjar/metadata.json") == null) {
+                throw new GradleException("${variantName}: JarJar metadata is missing")
+            }
+        }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn tasks.named("verifyBundleMetadata")
 }
