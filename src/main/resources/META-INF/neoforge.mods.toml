@@ -3,6 +3,12 @@ loaderVersion="${loader_version_range}"
 license="${mod_license}"
 issueTrackerURL=""
 
+[[mixins]]
+config="aozaink_input.mixins.json"
+
+[[mixins]]
+config="aozaink_sigillum.mixins.json"
+
 [[mods]]
 modId="aozaink_core"
 version="${mod_version}"
@@ -78,6 +84,13 @@ side="BOTH"
 
 [[dependencies.aozaink_sigillum]]
 modId="aozaink_core"
+type="required"
+versionRange="${mod_version}"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.aozaink_sigillum]]
+modId="aozaink_input"
 type="required"
 versionRange="${mod_version}"
 ordering="AFTER"
