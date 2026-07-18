@@ -2,6 +2,8 @@
 
 `aozaink-all` 是开发工程名；面向玩家及 Modrinth 的聚合完整版发布名为 `molu`。
 
+官方玩法模块的母义、基础字、尾修字和唯一所有权遵循父工程的 [`GLYPH_OWNERSHIP.md`](../GLYPH_OWNERSHIP.md)。聚合包不会让模块复用彼此拥有的汉字；Input 只统一黄符三格格式。
+
 本仓库引用以下模块：
 
 - [aozaink-core](https://github.com/aozainkmc/aozaink-core)
