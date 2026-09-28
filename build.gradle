@@ -2,12 +2,14 @@ plugins {
     id "base"
 }
 
-version = rootProject.mod_version
+version = mod_version
 group = rootProject.maven_group
 
 evaluationDependsOn(":aozaink-core")
 evaluationDependsOn(":aozaink-input")
 evaluationDependsOn(":aozaink-sigillum")
+evaluationDependsOn(":aozaink-arsenal")
+evaluationDependsOn(":aozaink-auth-client")
 
 base {
     archivesName = "molu"
@@ -18,6 +20,8 @@ def coreThinJar = project(":aozaink-core").tasks.named("jar", Jar)
 def coreReducedJar = project(":aozaink-core").tasks.named("reducedJar", Jar)
 def inputJar = project(":aozaink-input").tasks.named("jar", Jar)
 def sigillumJar = project(":aozaink-sigillum").tasks.named("jar", Jar)
+def arsenalJar = project(":aozaink-arsenal").tasks.named("jar", Jar)
+def authClientJar = project(":aozaink-auth-client").tasks.named("jar", Jar)
 def reducedClassifier = coreReducedJar.get().archiveClassifier.get()
 def reducedRuntimeArtifact = reducedClassifier == "reduced"
     ? "onnxruntime-${rootProject.onnxruntime_version}-reduced.jar"
@@ -28,7 +32,7 @@ def deleteStaleReducedVariant = tasks.register("deleteStaleReducedVariant", Dele
 }
 
 def configureBundle = { Jar task, def coreJar, String classifier, String description ->
-    def bundledJars = [coreJar, inputJar, sigillumJar]
+    def bundledJars = [coreJar, inputJar, sigillumJar, arsenalJar, authClientJar]
 
     task.group = "build"
     task.description = description
@@ -56,7 +60,8 @@ def configureBundle = { Jar task, def coreJar, String classifier, String descrip
             neo_version: rootProject.neo_version,
             mod_license: rootProject.mod_license,
             mod_version: rootProject.mod_version,
-            mod_authors: rootProject.mod_authors
+            mod_authors: rootProject.mod_authors,
+            arsenal_version: project(":aozaink-arsenal").mod_version
         ])
     }
 
@@ -149,6 +154,14 @@ tasks.register("verifyBundleMetadata") {
             def sigillumInputDependency = /(?s)\[\[dependencies\.aozaink_sigillum\]\].*?modId="aozaink_input"/
             if (!(metadata =~ sigillumInputDependency).find()) {
                 throw new GradleException("${variantName}: bundled metadata does not declare Sigillum's Input dependency")
+            }
+
+            def authClientMod = /\[\[mods\]\]\s*modId="aozaink_auth_client"/
+            if (!(metadata =~ authClientMod).find()) {
+                throw new GradleException("${variantName}: bundled metadata does not declare the auth client mod")
+            }
+            if (zip.getEntry("com/aozainkmc/authclient/AuthClientMod.class") == null) {
+                throw new GradleException("${variantName}: bundled jar is missing auth client classes")
             }
 
             def embeddedRuntimes = zip.entries().findAll {
