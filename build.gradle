@@ -10,6 +10,8 @@ evaluationDependsOn(":aozaink-input")
 evaluationDependsOn(":aozaink-sigillum")
 evaluationDependsOn(":aozaink-arsenal")
 evaluationDependsOn(":aozaink-auth-client")
+evaluationDependsOn(":aozaink-beansoldier")
+evaluationDependsOn(":aozaink-xuanxu")
 
 base {
     archivesName = "molu"
@@ -22,6 +24,8 @@ def inputJar = project(":aozaink-input").tasks.named("jar", Jar)
 def sigillumJar = project(":aozaink-sigillum").tasks.named("jar", Jar)
 def arsenalJar = project(":aozaink-arsenal").tasks.named("jar", Jar)
 def authClientJar = project(":aozaink-auth-client").tasks.named("jar", Jar)
+def beansoldierJar = project(":aozaink-beansoldier").tasks.named("jar", Jar)
+def xuanxuJar = project(":aozaink-xuanxu").tasks.named("jar", Jar)
 def reducedClassifier = coreReducedJar.get().archiveClassifier.get()
 def reducedRuntimeArtifact = reducedClassifier == "reduced"
     ? "onnxruntime-${rootProject.onnxruntime_version}-reduced.jar"
@@ -32,7 +36,7 @@ def deleteStaleReducedVariant = tasks.register("deleteStaleReducedVariant", Dele
 }
 
 def configureBundle = { Jar task, def coreJar, String classifier, String description ->
-    def bundledJars = [coreJar, inputJar, sigillumJar, arsenalJar, authClientJar]
+    def bundledJars = [coreJar, inputJar, sigillumJar, arsenalJar, authClientJar, beansoldierJar, xuanxuJar]
 
     task.group = "build"
     task.description = description
@@ -61,7 +65,9 @@ def configureBundle = { Jar task, def coreJar, String classifier, String descrip
             mod_license: rootProject.mod_license,
             mod_version: rootProject.mod_version,
             mod_authors: rootProject.mod_authors,
-            arsenal_version: project(":aozaink-arsenal").mod_version
+            arsenal_version: project(":aozaink-arsenal").mod_version,
+            beansoldier_version: project(":aozaink-beansoldier").mod_version,
+            xuanxu_version: project(":aozaink-xuanxu").mod_version
         ])
     }
 
@@ -126,7 +132,7 @@ tasks.register("verifyBundleMetadata") {
             def metadataEntry = zip.getEntry("META-INF/neoforge.mods.toml")
             if (metadataEntry == null) throw new GradleException("${variantName}: bundled neoforge.mods.toml is missing")
             def metadata = zip.getInputStream(metadataEntry).getText("UTF-8")
-            for (def mixinConfig : ["aozaink_input.mixins.json", "aozaink_sigillum.mixins.json"]) {
+            for (def mixinConfig : ["aozaink_input.mixins.json", "aozaink_sigillum.mixins.json", "aozaink_xuanxu.mixins.json"]) {
                 if (zip.getEntry(mixinConfig) == null) {
                     throw new GradleException("${variantName}: bundled mixin config is missing: ${mixinConfig}")
                 }
@@ -162,6 +168,19 @@ tasks.register("verifyBundleMetadata") {
             }
             if (zip.getEntry("com/aozainkmc/authclient/AuthClientMod.class") == null) {
                 throw new GradleException("${variantName}: bundled jar is missing auth client classes")
+            }
+
+            for (def bundledMod : [
+                [id: "aozaink_arsenal", entry: "com/aozainkmc/arsenal/ArsenalMod.class"],
+                [id: "aozaink_beansoldier", entry: "com/aozainkmc/beansoldier/BeansoldierMod.class"],
+                [id: "aozaink_xuanxu", entry: "com/aozainkmc/xuanxu/XuanxuMod.class"]
+            ]) {
+                if (!(metadata =~ /\[\[mods\]\]\s*modId="${bundledMod.id}"/).find()) {
+                    throw new GradleException("${variantName}: bundled metadata does not declare ${bundledMod.id}")
+                }
+                if (zip.getEntry(bundledMod.entry) == null) {
+                    throw new GradleException("${variantName}: bundled jar is missing ${bundledMod.entry}")
+                }
             }
 
             def embeddedRuntimes = zip.entries().findAll {

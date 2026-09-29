@@ -9,6 +9,9 @@ config="aozaink_input.mixins.json"
 [[mixins]]
 config="aozaink_sigillum.mixins.json"
 
+[[mixins]]
+config="aozaink_xuanxu.mixins.json"
+
 [[mods]]
 modId="aozaink_core"
 version="${mod_version}"
@@ -85,7 +88,7 @@ side="BOTH"
 [[dependencies.aozaink_sigillum]]
 modId="aozaink_core"
 type="required"
-versionRange="${mod_version}"
+versionRange="[0.1.0-alpha.4,)"
 ordering="AFTER"
 side="BOTH"
 
@@ -121,7 +124,7 @@ side="BOTH"
 [[dependencies.aozaink_arsenal]]
 modId="aozaink_core"
 type="required"
-versionRange="[0.1.0-alpha.3,)"
+versionRange="[0.1.0-alpha.4,)"
 ordering="AFTER"
 side="BOTH"
 
@@ -152,4 +155,69 @@ modId="minecraft"
 type="required"
 versionRange="${compatible_minecraft_versions}"
 ordering="NONE"
+side="BOTH"
+
+[[mods]]
+modId="aozaink_beansoldier"
+version="${beansoldier_version}"
+displayName="Molu Beansoldier"
+authors="${mod_authors}"
+description='''Scatter beans into soldiers, built on Aozai Ink Core. Write bean talismans, sow a squad, and command it by handwriting.'''
+displayTest="IGNORE_SERVER_VERSION"
+
+[[dependencies.aozaink_beansoldier]]
+modId="neoforge"
+type="required"
+versionRange="[${neo_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.aozaink_beansoldier]]
+modId="minecraft"
+type="required"
+versionRange="${compatible_minecraft_versions}"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.aozaink_beansoldier]]
+modId="aozaink_core"
+type="required"
+versionRange="[0.1.0-alpha.4,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.aozaink_beansoldier]]
+modId="aozaink_input"
+type="required"
+versionRange="[0.1.0-alpha.4,)"
+ordering="AFTER"
+side="BOTH"
+
+[[mods]]
+modId="aozaink_xuanxu"
+version="${xuanxu_version}"
+displayName="Aozai Xuanxu"
+authors="${mod_authors}"
+description='''Xuanxu story RPG built on Aozai Ink Core. The Taixu Tower dungeon driven by handwriting.'''
+displayTest="IGNORE_SERVER_VERSION"
+
+[[dependencies.aozaink_xuanxu]]
+modId="neoforge"
+type="required"
+versionRange="[${neo_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.aozaink_xuanxu]]
+modId="minecraft"
+type="required"
+versionRange="${compatible_minecraft_versions}"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.aozaink_xuanxu]]
+modId="aozaink_core"
+type="required"
+versionRange="[0.1.0-alpha.3,)"
+ordering="AFTER"
 side="BOTH"
